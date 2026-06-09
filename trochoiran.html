@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lập trình Scratch - Sâu Béo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Baloo+2:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --scratch-blue: #4C97FF;
+            --scratch-blue-dark: #3373CC;
+            --scratch-yellow: #FFAB19;
+            --scratch-yellow-dark: #CF8B17;
+            --success: #28CC59;
+            --success-dark: #1DA045;
+            --danger: #FF5E5E;
+            --bg-main: #E5F0FF;
+            --bg-stage: #D6E8FF;
+            --bg-palette: #F0F4FF;
+            --block-radius: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Nunito', sans-serif;
+            display: flex; flex-direction: column;
+            height: 100vh;
+            background: var(--bg-main);
+            overflow: hidden;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            height: 62px;
+            background: var(--scratch-blue);
+            display: flex; align-items: center; justify-content: center;
+            padding: 0 20px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .app-title {
+            font-family: 'Baloo 2', sans-serif;
+            font-size: 21px; font-weight: 900;
+            color: #fff;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.22);
+            text-align: center;
+            transition: opacity 0.3s;
+        }
+        .header-icon { font-size: 24px; margin-right: 10px; }
+
+        /* Badge thử thách góc phải header */
+        .challenge-badge {
+            position: absolute; right: 20px;
+            background: rgba(255,255,255,0.22);
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 20px;
+            padding: 4px 14px;
+            font-size: 13px; font-weight: 900;
+            color: #fff;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== LAYOUT ===== */
+        .main-container {
+            display: flex; flex: 1;
+            overflow: hidden;
+            height: calc(100vh - 62px);
+        }
+
+        /* ===== CỘT TRÁI ===== */
+        .stage-section {
+            width: 340px; min-width: 300px;
+            background: var(--bg-stage);
+            border-right: 3px solid #B8D0F0;
+            padding: 14px;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 12px;
+            flex-shrink: 0; overflow: hidden;
+        }
+
+        .challenge-card {
+            width: 100%;
+            background: #FFF9E6;
+            border: 3px solid var(--scratch-yellow);
+            border-radius: 16px;
+            padding: 12px 14px;
+        }
+        .challenge-title {
+            font-family: 'Baloo 2', sans-serif;
+            font-size: 15px; font-weight: 900;
+            color: var(--scratch-yellow-dark);
+            margin-bottom: 6px;
+        }
+        .challenge-desc {
+            font-size: 13.5px; font-weight: 700;
+            color: #4A3800; line-height: 1.55;
+        }
+        .warning-note {
+            margin-top: 8px;
+            font-size: 13px; font-weight: 800;
+            color: #c0392b;
+            background: #FFE8E8;
+            border: 2px solid #FFB8B8;
+            border-radius: 10px;
+            padding: 6px 10px;
+        }
+
+        /* MÊ CUNG / SÂN CHƠI */
+        .maze-wrapper {
+            width: 100%; aspect-ratio: 1;
+            max-width: 300px;
+            background: #8AB4E8;
+            border: 4px solid #5580C0;
+            border-radius: 18px;
+            padding: 4px;
+            position: relative; flex-shrink: 0;
+        }
+        .maze-container {
+            width: 100%; height: 100%;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: repeat(7, 1fr);
+            gap: 3px;
+            border-radius: 14px;
+            overflow: hidden; position: relative;
+        }
+        .cell {
+            width: 100%; height: 100%;
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cell.path { background: #FAFAFA; }
+        .cell.wall {
+            background: linear-gradient(145deg, #C0763A, #8B4513);
+            border: 1px solid #6B3410;
+            position: relative; overflow: hidden;
+        }
+        .cell.wall::after {
+            content: "";
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(0,0,0,0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.15) 1px, transparent 1px);
+            background-size: 50% 50%;
+        }
+        .fruit-cell { font-size: 26px; animation: bounce 1.6s infinite ease-in-out; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+        .grape { font-size: 26px; animation: bounce 1.6s infinite ease-in-out; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+        /* THÂN SÂU */
+        .worm-segment {
+            position: absolute; z-index: 8;
+            display: flex; align-items: center; justify-content: center;
+            transition: top 0.27s cubic-bezier(.4,0,.2,1), left 0.27s cubic-bezier(.4,0,.2,1);
+            border-radius: 8px;
+        }
+        .worm-segment.body-seg {
+            background: #00CFA0;
+            border: 2.5px solid #00A87F;
+            box-shadow: inset -1px -1px 0 rgba(0,0,0,0.1);
+        }
+        .worm-head {
+            position: absolute; z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+            transition: top 0.27s cubic-bezier(.4,0,.2,1), left 0.27s cubic-bezier(.4,0,.2,1), transform 0.27s;
+        }
+        .worm-head-body {
+            width: 100%; height: 100%;
+            background: #55EFC4;
+            border: 3px solid #00B894;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: flex-end;
+            padding-right: 3px;
+            box-shadow: inset -2px -2px 0 rgba(0,0,0,0.1);
+        }
+        .worm-eyes { font-size: 12px; transform: rotate(-90deg); user-select: none; }
+
+        /* Điểm số thử thách 1 */
+        .score-bar {
+            width: 100%;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            flex-shrink: 0;
+        }
+        .fruit-badge {
+            font-size: 22px;
+            padding: 4px 8px;
+            background: #fff;
+            border: 2.5px solid #D0E4FF;
+            border-radius: 12px;
+            transition: all 0.3s;
+            filter: grayscale(0.7) opacity(0.5);
+        }
+        .fruit-badge.eaten {
+            filter: none;
+            border-color: var(--success);
+            background: #EFFFED;
+            transform: scale(1.15);
+        }
+
+        /* OVERLAY KẾT QUẢ */
+        .maze-overlay {
+            position: absolute; inset: 0;
+            background: rgba(255,255,255,0.94);
+            border-radius: 14px;
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 10px; z-index: 30;
+            padding: 16px; text-align: center;
+        }
+        .maze-overlay.show { display: flex; }
+        .overlay-emoji { font-size: 46px; }
+        .overlay-text {
+            font-family: 'Baloo 2', sans-serif;
+            font-size: 15px; font-weight: 800; line-height: 1.45;
+        }
+        .overlay-text.success { color: #00B894; }
+        .overlay-text.fail { color: #c0392b; }
+        .overlay-btns { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+        .btn-overlay {
+            padding: 10px 18px;
+            border: none; border-radius: 20px;
+            font-family: 'Nunito', sans-serif;
+            font-size: 14px; font-weight: 900;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-primary {
+            background: var(--success);
+            color: #fff;
+            box-shadow: 0 4px 0 var(--success-dark);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 0 var(--success-dark); }
+        .btn-primary:active { transform: translateY(2px); box-shadow: none; }
+        .btn-secondary {
+            background: #EEF3FF;
+            color: var(--scratch-blue);
+            box-shadow: 0 4px 0 #C0D4FF;
+        }
+        .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #C0D4FF; }
+        .btn-secondary:active { transform: translateY(2px); box-shadow: none; }
+
+        /* ===== CỘT PHẢI ===== */
+        .coding-section {
+            flex: 1; display: flex;
+            overflow: hidden; background: #E9F0FF;
+        }
+
+        .sidebar {
+            width: 80px; background: #fff;
+            border-right: 2px solid #D8E4F8;
+            display: flex; flex-direction: column;
+            align-items: center;
+            padding-top: 14px; gap: 6px;
+            flex-shrink: 0;
+        }
+        .category {
+            display: flex; flex-direction: column;
+            align-items: center;
+            padding: 8px 6px; border-radius: 12px;
+            cursor: pointer; width: 70px;
+            transition: background 0.2s; text-align: center;
+        }
+        .category:hover { background: #F0F4FF; }
+        .category.active { background: #E8EFFF; }
+        .cat-dot {
+            width: 28px; height: 28px;
+            border-radius: 8px; margin-bottom: 5px;
+            transition: transform 0.2s;
+        }
+        .category:hover .cat-dot { transform: scale(1.1); }
+        .cat-label { font-size: 11px; font-weight: 800; color: #5577AA; line-height: 1.2; }
+        .category.active .cat-label { color: #2255BB; }
+        #dot-motion { background: var(--scratch-blue); }
+        #dot-events { background: var(--scratch-yellow); }
+        .category.active #dot-motion { box-shadow: 0 0 0 3px rgba(76,151,255,0.3); }
+        .category.active #dot-events { box-shadow: 0 0 0 3px rgba(255,171,25,0.3); }
+
+        .palette {
+            width: 195px; background: #F0F4FF;
+            border-right: 2px solid #D8E4F8;
+            padding: 14px 10px; overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .palette-title { font-size: 11px; font-weight: 800; color: #8899CC; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .palette-group { display: none; flex-direction: column; gap: 12px; }
+        .palette-group.active { display: flex; }
+
+        /* KHỐI LỆNH */
+        .block {
+            color: #fff; padding: 10px 12px;
+            border-radius: var(--block-radius);
+            cursor: grab; font-family: 'Nunito', sans-serif;
+            font-size: 14px; font-weight: 800;
+            user-select: none; position: relative;
+            display: flex; align-items: center; gap: 6px;
+            flex-shrink: 0; width: fit-content;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: transform 0.15s;
+            white-space: nowrap;
+        }
+        .block:hover { transform: scale(1.03); }
+        .block:active { cursor: grabbing; transform: scale(0.97); }
+        .block::before {
+            content: ""; position: absolute;
+            top: -5px; left: 14px;
+            width: 12px; height: 5px;
+            background: inherit; border-radius: 4px 4px 0 0;
+            filter: brightness(0.85);
+        }
+        .block::after {
+            content: ""; position: absolute;
+            bottom: -5px; left: 14px;
+            width: 12px; height: 5px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 0 0 4px 4px;
+        }
+        .block.motion { background: var(--scratch-blue); box-shadow: 0 4px 0 var(--scratch-blue-dark); }
+        .block.events { background: var(--scratch-yellow); box-shadow: 0 4px 0 var(--scratch-yellow-dark); }
+        .block.hat { border-radius: 18px 18px var(--block-radius) var(--block-radius); }
+        .block.hat::before { display: none; }
+
+        .block-input {
+            width: 40px; height: 26px;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 20px; text-align: center;
+            font-family: 'Nunito', sans-serif;
+            font-size: 14px; font-weight: 800;
+            color: #333; background: #fff;
+        }
+        .block-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,0.5); }
+
+        .scratch-flag-icon { width: 18px; height: 18px; display: inline-block; vertical-align: middle; flex-shrink: 0; }
+
+        /* WORKSPACE */
+        .workspace-area { flex: 1; position: relative; overflow: hidden; background: #fff; }
+        .workspace-hint {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            text-align: center; pointer-events: none; z-index: 1;
+        }
+        .workspace-hint-icon { font-size: 40px; opacity: 0.2; }
+        .workspace-hint-text { font-size: 14px; font-weight: 800; color: #BBC8E0; margin-top: 6px; white-space: nowrap; }
+        .workspace {
+            position: absolute; inset: 0; overflow: auto;
+            background-image: radial-gradient(circle, #D8E4F8 1.5px, transparent 1.5px);
+            background-size: 22px 22px;
+        }
+
+        /* Nút cờ xanh góc trên phải */
+        .flag-run-btn {
+            position: absolute; top: 14px; right: 94px; z-index: 50;
+            width: 48px; height: 48px;
+            background: #fff;
+            border: 3px solid #28CC59; border-radius: 12px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 0 #1DA045, 0 6px 16px rgba(40,204,89,0.2);
+            transition: all 0.15s;
+        }
+        .flag-run-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #1DA045, 0 10px 20px rgba(40,204,89,0.3); background: #F0FFF5; }
+        .flag-run-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #1DA045; }
+
+        .run-btn {
+            position: absolute; bottom: 20px; right: 20px; z-index: 50;
+            width: 64px; height: 64px;
+            background: var(--success); border: none; border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center; flex-direction: column;
+            box-shadow: 0 5px 0 var(--success-dark), 0 8px 20px rgba(40,204,89,0.35);
+            transition: all 0.15s;
+        }
+        .run-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 0 var(--success-dark), 0 10px 28px rgba(40,204,89,0.4); }
+        .run-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--success-dark); }
+        .run-btn svg { width: 26px; height: 26px; fill: #fff; margin-left: 3px; }
+        .run-label { font-size: 9px; font-weight: 900; color: #fff; letter-spacing: 1px; margin-top: -2px; }
+
+        .context-menu {
+            position: fixed; background: #fff;
+            border: 2px solid #D0DFF8; border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            z-index: 1000; display: none;
+            min-width: 155px; padding: 6px 0; list-style: none;
+        }
+        .context-menu-item {
+            padding: 9px 16px; cursor: pointer;
+            font-size: 14px; font-weight: 800; color: #334477;
+            transition: background 0.15s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .context-menu-item:hover { background: #EEF3FF; color: var(--scratch-blue); }
+
+        .palette::-webkit-scrollbar, .workspace::-webkit-scrollbar { width: 4px; }
+        .palette::-webkit-scrollbar-thumb, .workspace::-webkit-scrollbar-thumb { background: #C8D5EE; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <span class="header-icon">🐛</span>
+    <div class="app-title" id="app-title">Lập trình Scratch cùng Sâu Béo!</div>
+    <div class="challenge-badge" id="challenge-badge">Thử thách 1</div>
+</div>
+
+<div class="main-container">
+    <div class="stage-section">
+
+        <div class="challenge-card">
+            <div class="challenge-title" id="card-title">🎯 THỬ THÁCH 1: SÂU BÉO PHÀM ĂN!</div>
+            <div class="challenge-desc" id="card-desc">
+                Hãy lập trình giúp chú sâu béo đi thẳng theo đường trắng để ăn quả táo nhé! 🍎
+            </div>
+            <div class="warning-note" id="card-warning">
+                💡 Thử thách này rất dễ: chỉ cần cho sâu đi thẳng vài bước là tới quả táo!
+            </div>
+        </div>
+
+        <!-- Đã ẩn thanh icon trái cây để mê cung không bị cắt phần bo dưới -->
+        <div class="score-bar" id="score-bar" style="display:none;">
+            <div class="fruit-badge" id="badge-0">🍎</div>
+            <div class="fruit-badge" id="badge-1">🍌</div>
+            <div class="fruit-badge" id="badge-2">🍓</div>
+        </div>
+
+        <div class="maze-wrapper">
+            <div class="maze-container" id="maze">
+                <div class="maze-overlay" id="msg-overlay">
+                    <div class="overlay-emoji" id="overlay-emoji"></div>
+                    <div class="overlay-text" id="overlay-text"></div>
+                    <div class="overlay-btns" id="overlay-btns"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="coding-section">
+
+        <div class="sidebar">
+            <div class="category active" id="btn-motion" onclick="switchCategory('motion')">
+                <div class="cat-dot" id="dot-motion"></div>
+                <div class="cat-label">Chuyển động</div>
+            </div>
+            <div class="category" id="btn-events" onclick="switchCategory('events')">
+                <div class="cat-dot" id="dot-events"></div>
+                <div class="cat-label">Sự kiện</div>
+            </div>
+        </div>
+
+        <div class="palette" id="palette" ondrop="paletteDrop(event)" ondragover="allowDrop(event)">
+            <div class="palette-title">Kéo lệnh vào →</div>
+            <div class="palette-group active" id="group-motion">
+                <div class="block motion" data-type="move" draggable="true" ondragstart="drag(event)">
+                    di chuyển <input type="number" class="block-input" value="1"> bước
+                </div>
+                <div class="block motion" data-type="turn-right" draggable="true" ondragstart="drag(event)">
+                    ↻ xoay phải <input type="number" class="block-input" value="90"> độ
+                </div>
+                <div class="block motion" data-type="turn-left" draggable="true" ondragstart="drag(event)">
+                    ↺ xoay trái <input type="number" class="block-input" value="90"> độ
+                </div>
+            </div>
+            <div class="palette-group" id="group-events">
+                <div class="block events hat" data-type="flag" draggable="true" ondragstart="drag(event)">
+                    Khi bấm vào
+                    <svg class="scratch-flag-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 3v18" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M5 4 C5 4 17 8 5 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="rgba(255,255,255,0.6)"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="workspace-area">
+            <div class="workspace-hint" id="workspace-hint">
+                <div class="workspace-hint-icon">🧩</div>
+                <div class="workspace-hint-text">Kéo các lệnh vào đây nhé!</div>
+            </div>
+            <div class="workspace" id="workspace" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+
+            <button class="flag-run-btn" onclick="runScript()" title="Nhấn cờ xanh để chạy">
+                <svg viewBox="0 0 24 24" width="26" height="26">
+                    <path d="M5 3v18" stroke="#28CC59" stroke-width="2.5" stroke-linecap="round"/>
+                    <path d="M5 4 C5 4 17 8 5 12" stroke="#28CC59" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="#28CC59"/>
+                </svg>
+            </button>
+
+            <button class="run-btn" onclick="runScript()" title="Chạy chương trình">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <span class="run-label">CHẠY</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<ul class="context-menu" id="custom-menu">
+    <li class="context-menu-item" onclick="contextDuplicate()">📋 Nhân bản lệnh</li>
+    <li class="context-menu-item" onclick="contextDelete()">🗑️ Xoá lệnh</li>
+</ul>
+
+<script>
+// ===== DỮ LIỆU BẢN ĐỒ =====
+
+// Thử thách 1: mê cung dễ, tường bao kín và chỉ có một đường thẳng ngang tới quả táo
+const map1 = [
+    [1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1],
+    [1,'R',0,0,0,'A',1],
+    [1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1]
+]; // R=start, A=🍎
+
+// Thử thách 2: mê cung có nhiều tường hơn, nho gần hơn và chỉ cần rẽ 2 lần
+const map2 = [
+    [1,1,1,1,1,1,1],
+    [1,'R',0,0,1,1,1],
+    [1,1,1,0,1,1,1],
+    [1,1,1,0,'B',1,1],
+    [1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1]
+];
+
+const fruitMap = { 'A':'🍎', 'C':'🍌', 'D':'🍓', 'B':'🍇' };
+const fruitOrder = ['A'];
+
+let currentChallenge = 1;
+let currentMap = null;
+let wormPos = {r:1,c:1};
+let wormDir = 90;
+let isMoving = false;
+let wormTail = []; // [{r,c}] thân sâu
+let eatenFruits = [];
+let failTimeout = null;
+
+// ===== SWITCH CATEGORY =====
+function switchCategory(cat) {
+    ['motion','events'].forEach(c => {
+        document.getElementById('btn-'+c).classList.remove('active');
+        document.getElementById('group-'+c).classList.remove('active');
+    });
+    document.getElementById('btn-'+cat).classList.add('active');
+    document.getElementById('group-'+cat).classList.add('active');
+}
+
+// ===== KHỞI TẠO THỬ THÁCH =====
+function initChallenge(n) {
+    currentChallenge = n;
+    eatenFruits = [];
+    currentMap = n===1 ? map1.map(r=>[...r]) : map2.map(r=>[...r]);
+    wormTail = [];
+    clearWorkspace();
+
+    if(n===1) {
+        document.getElementById('app-title').textContent = 'Lập trình Scratch cùng Sâu Béo!';
+        document.getElementById('challenge-badge').textContent = 'Thử thách 1';
+        document.getElementById('card-title').textContent = '🎯 THỬ THÁCH 1: SÂU BÉO PHÀM ĂN!';
+        document.getElementById('card-desc').textContent = 'Hãy lập trình giúp chú sâu béo đi thẳng theo đường trắng để ăn quả táo nhé! 🍎';
+        document.getElementById('card-warning').textContent = '💡 Thử thách này rất dễ: chỉ cần cho sâu đi thẳng vài bước là tới quả táo!';
+        document.getElementById('score-bar').style.display = 'none';
+        updateFruitBadges();
+    } else {
+        document.getElementById('app-title').textContent = 'Lập trình Scratch cùng Sâu Béo!';
+        document.getElementById('challenge-badge').textContent = 'Thử thách 2';
+        document.getElementById('card-title').textContent = '🏆 THỬ THÁCH 2: SÂU BÉO TÌM NHO!';
+        document.getElementById('card-desc').textContent = 'Hãy lập trình giúp chú sâu đi theo đường trắng để ăn chùm nho nhé! 🍇';
+        document.getElementById('card-warning').textContent = '⚠️ Không được đâm vào tường nâu!';
+        document.getElementById('score-bar').style.display = 'none';
+    }
+
+    createMaze();
+}
+
+function clearWorkspace() {
+    const ws = document.getElementById('workspace');
+    ws.querySelectorAll('.block').forEach(b => b.remove());
+    document.getElementById('workspace-hint').style.display = '';
+    if(failTimeout) { clearTimeout(failTimeout); failTimeout = null; }
+}
+
+function updateFruitBadges() {
+    fruitOrder.forEach((f,i) => {
+        const el = document.getElementById('badge-'+i);
+        el.textContent = fruitMap[f];
+        el.className = 'fruit-badge' + (eatenFruits.includes(f) ? ' eaten' : '');
+    });
+}
+
+// ===== VẼ MÊ CUNG =====
+const mazeEl = document.getElementById('maze');
+
+function findStartPosition() {
+    for (let r = 0; r < 7; r++) {
+        for (let c = 0; c < 7; c++) {
+            if (currentMap[r][c] === 'R') return {r, c};
+        }
+    }
+    return {r:1, c:1};
+}
+
+function createMaze() {
+    mazeEl.querySelectorAll('.cell,.worm-head,.worm-segment').forEach(e => e.remove());
+
+    currentMap.forEach((row,r) => row.forEach((v,c) => {
+        const cell = document.createElement('div');
+        const isWall = v===1;
+        cell.className = 'cell ' + (isWall ? 'wall' : 'path');
+        if(fruitMap[v]) {
+            const span = document.createElement('span');
+            span.textContent = fruitMap[v];
+            span.className = v==='B' ? 'grape' : 'fruit-cell';
+            span.dataset.fruit = v;
+            cell.appendChild(span);
+        }
+        mazeEl.appendChild(cell);
+    }));
+
+    wormPos = findStartPosition();
+    wormDir = 90;
+    wormTail = [];
+    redrawWhenMazeReady();
+}
+
+function getCellSize() {
+    // Khi nhúng trong index.html, lúc file vừa load khung game có thể chưa kịp hiện,
+    // mazeEl.clientWidth = 0 làm sâu bị vẽ với kích thước 0 nên ban đầu không thấy.
+    const w = mazeEl.clientWidth || mazeEl.getBoundingClientRect().width || 292;
+    return w / 7;
+}
+
+function redrawWhenMazeReady() {
+    requestAnimationFrame(() => {
+        drawWorm();
+        // Nếu vẫn chưa có kích thước, đợi thêm một nhịp rồi vẽ lại.
+        if ((mazeEl.clientWidth || mazeEl.getBoundingClientRect().width) <= 0) {
+            setTimeout(drawWorm, 120);
+        }
+    });
+}
+
+function drawWorm() {
+    // Xoá sprite cũ
+    mazeEl.querySelectorAll('.worm-head,.worm-segment').forEach(e=>e.remove());
+
+    const cs = getCellSize();
+    const pad = cs * 0.1;
+    const sz = cs * 0.8;
+
+    // Vẽ thân
+    wormTail.forEach(seg => {
+        const div = document.createElement('div');
+        div.className = 'worm-segment body-seg';
+        div.style.width = sz+'px'; div.style.height = sz+'px';
+        div.style.top = (seg.r*cs+pad)+'px';
+        div.style.left = (seg.c*cs+pad)+'px';
+        mazeEl.appendChild(div);
+    });
+
+    // Vẽ đầu
+    const head = document.createElement('div');
+    head.className = 'worm-head';
+    head.id = 'worm-sprite';
+    head.style.width = sz+'px'; head.style.height = sz+'px';
+    head.style.top = (wormPos.r*cs+pad)+'px';
+    head.style.left = (wormPos.c*cs+pad)+'px';
+    head.style.transform = `rotate(${wormDir-90}deg)`;
+    head.innerHTML = '<div class="worm-head-body"><div class="worm-eyes">👀</div></div>';
+    mazeEl.appendChild(head);
+}
+
+function updateHeadPos() {
+    const cs = getCellSize();
+    const pad = cs * 0.1;
+    const head = document.getElementById('worm-sprite');
+    if(!head) return;
+    head.style.top = (wormPos.r*cs+pad)+'px';
+    head.style.left = (wormPos.c*cs+pad)+'px';
+    head.style.transform = `rotate(${wormDir-90}deg)`;
+}
+
+// ===== DRAG & DROP =====
+let draggedEl=null, offX=0, offY=0;
+
+function allowDrop(e) { e.preventDefault(); }
+function drag(e) {
+    draggedEl = e.target.closest('.block');
+    const r = draggedEl.getBoundingClientRect();
+    offX = e.clientX-r.left; offY = e.clientY-r.top;
+}
+function drop(e) {
+    e.preventDefault();
+    if(!draggedEl) return;
+    const ws = document.getElementById('workspace');
+    const rect = ws.getBoundingClientRect();
+    let dx = e.clientX-rect.left-offX;
+    let dy = e.clientY-rect.top-offY;
+
+    const fromPalette = draggedEl.parentNode.classList.contains('palette-group');
+    const nb = fromPalette ? draggedEl.cloneNode(true) : draggedEl;
+
+    ws.querySelectorAll('.block').forEach(b => {
+        if(b===nb) return;
+        const br = b.getBoundingClientRect();
+        const bx = br.left-rect.left, by = br.bottom-rect.top;
+        if(Math.abs(dx-bx)<35 && Math.abs(dy-by)<28) { dx=bx; dy=by-4; }
+    });
+
+    nb.style.position='absolute';
+    nb.style.left=dx+'px'; nb.style.top=dy+'px';
+    nb.ondragstart = drag;
+    if(!ws.contains(nb)) ws.appendChild(nb);
+    if(ws.querySelectorAll('.block').length>0)
+        document.getElementById('workspace-hint').style.display='none';
+    draggedEl=null;
+}
+function paletteDrop(e) {
+    e.preventDefault();
+    if(draggedEl && draggedEl.parentNode.id==='workspace') draggedEl.remove();
+    draggedEl=null;
+    const ws=document.getElementById('workspace');
+    if(ws.querySelectorAll('.block').length===0)
+        document.getElementById('workspace-hint').style.display='';
+}
+
+// ===== CONTEXT MENU =====
+let rightClickedBlock=null;
+const ctxMenu=document.getElementById('custom-menu');
+document.getElementById('workspace').addEventListener('contextmenu',e=>{
+    const b=e.target.closest('.block');
+    if(b){e.preventDefault();rightClickedBlock=b;ctxMenu.style.display='block';ctxMenu.style.left=e.clientX+'px';ctxMenu.style.top=e.clientY+'px';}
+});
+window.addEventListener('click',()=>ctxMenu.style.display='none');
+function contextDelete(){if(rightClickedBlock){rightClickedBlock.remove();rightClickedBlock=null;}}
+function contextDuplicate(){
+    if(rightClickedBlock){
+        const cl=rightClickedBlock.cloneNode(true);
+        cl.style.left=(parseInt(rightClickedBlock.style.left)+20)+'px';
+        cl.style.top=(parseInt(rightClickedBlock.style.top)+20)+'px';
+        cl.ondragstart=drag;
+        document.getElementById('workspace').appendChild(cl);
+        rightClickedBlock=null;
+    }
+}
+
+// ===== CHẠY CHƯƠNG TRÌNH =====
+async function runScript() {
+    if(isMoving) return;
+    const ws=document.getElementById('workspace');
+    let blocks=Array.from(ws.querySelectorAll('.block'));
+    blocks.sort((a,b)=>parseInt(a.style.top)-parseInt(b.style.top));
+    if(!blocks.length) return;
+
+    if(blocks[0].dataset.type!=='flag'){
+        showMsg('GREEN_FLAG','Em phải đặt khối "Khi bấm vào" lên đầu tiên nhé!','fail',false);
+        return;
+    }
+
+    // Reset vị trí sâu về đúng ô R của bản đồ hiện tại
+    wormPos=findStartPosition(); wormDir=90; isMoving=true;
+    drawWorm();
+    document.getElementById('msg-overlay').classList.remove('show');
+    if(failTimeout){clearTimeout(failTimeout);failTimeout=null;}
+
+    for(let i=1;i<blocks.length;i++){
+        const b=blocks[i];
+        const t=b.dataset.type;
+        const v=b.querySelector('input')?parseInt(b.querySelector('input').value)||0:0;
+        if(t==='move') await crawl(v);
+        else if(t==='turn-right') await turn(v);
+        else if(t==='turn-left') await turn(-v);
+        if(!isMoving) break;
+    }
+
+    if(isMoving){
+        isMoving=false;
+        if(currentChallenge===1) checkWin1();
+        else checkWin2();
+    }
+}
+
+async function turn(deg) {
+    wormDir+=deg;
+    updateHeadPos();
+    await delay(350);
+}
+
+async function crawl(steps) {
+    const dr=Math.round(-Math.cos(wormDir*Math.PI/180));
+    const dc=Math.round(Math.sin(wormDir*Math.PI/180));
+
+    for(let i=0;i<steps;i++){
+        const nr=wormPos.r+dr, nc=wormPos.c+dc;
+
+        // Kiểm tra ra ngoài
+        if(nr<0||nr>=7||nc<0||nc>=7){
+            isMoving=false;
+            scheduleFailMsg('😵','Ối! Sâu béo bò ra ngoài sân rồi!\nHãy tính lại số bước nhé!');
+            return;
+        }
+
+        // Kiểm tra tường (chỉ thử thách 2)
+        if(currentMap[nr][nc]===1){
+            isMoving=false;
+            scheduleFailMsg('😵','Ối! Sâu béo đâm vào tường rồi!\nHãy tính lại số bước nhé!');
+            return;
+        }
+
+        // Di chuyển: thân theo đầu
+        if(wormTail.length>0){
+            wormTail.unshift({r:wormPos.r, c:wormPos.c});
+            wormTail.pop();
+        }
+
+        wormPos.r=nr; wormPos.c=nc;
+
+        // Ăn trái cây (TT1)
+        const cell=currentMap[nr][nc];
+        if(currentChallenge===1 && fruitMap[cell] && cell!=='B'){
+            eatFruit(cell, nr, nc);
+        }
+
+        drawWorm();
+        await delay(350);
+    }
+}
+
+function eatFruit(fruitKey, r, c) {
+    if(eatenFruits.includes(fruitKey)) return;
+    eatenFruits.push(fruitKey);
+    currentMap[r][c]=0;
+
+    // Xoá trái cây khỏi ô
+    const idx=r*7+c;
+    const cells=mazeEl.querySelectorAll('.cell');
+    if(cells[idx]) cells[idx].innerHTML='';
+
+    // Thêm khúc đuôi
+    const lastPos = wormTail.length>0 ? wormTail[wormTail.length-1] : wormPos;
+    wormTail.push({r:lastPos.r, c:lastPos.c});
+
+    updateFruitBadges();
+}
+
+function checkWin1() {
+    if(eatenFruits.length===fruitOrder.length){
+        showMsg('🎉','Giỏi quá! Sâu béo đã ăn được quả táo rồi! 🍎','success',true,'next');
+    } else {
+        const left=fruitOrder.length-eatenFruits.length;
+        scheduleFailMsg('🤔',`Sâu béo còn thiếu ${left} quả nữa!\nLập trình lại nhé!`);
+    }
+}
+
+function checkWin2() {
+    if(currentMap[wormPos.r][wormPos.c]==='B'){
+
+        localStorage.setItem("gameScore", 10);
+
+        window.parent.postMessage({
+            type: "GAME_COMPLETE"
+        }, "*");
+
+        showMsg(
+            '🎉',
+            'Xuất sắc! Sâu béo đã tìm thấy và ăn chùm nho rồi! 🍇✨',
+            'success',
+            true,
+            'done'
+        );
+
+    } else {
+        scheduleFailMsg(
+            '🤔',
+            'Gần đúng rồi! Sâu béo chưa đến chùm nho.\nLập trình lại nhé!'
+        );
+    }
+}
+// Thông báo thất bại: đợi 5 giây
+function scheduleFailMsg(emoji, text) {
+    failTimeout = setTimeout(()=>{
+        if(!isMoving) showMsg(emoji, text, 'fail', false);
+        failTimeout=null;
+    }, 5000);
+}
+
+function showMsg(emoji, text, type, isWin, nextAction) {
+    const emojiEl = document.getElementById('overlay-emoji');
+    if(emoji === 'GREEN_FLAG') {
+        emojiEl.innerHTML = `
+            <svg viewBox="0 0 24 24" width="54" height="54" aria-label="cờ xanh">
+                <path d="M5 3v18" stroke="#28CC59" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M5 4 C5 4 17 8 5 12" stroke="#28CC59" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="#28CC59"/>
+            </svg>`;
+    } else {
+        emojiEl.textContent = emoji;
+    }
+    const el=document.getElementById('overlay-text');
+    el.textContent=text; el.className='overlay-text '+type;
+
+    const btns=document.getElementById('overlay-btns');
+    btns.innerHTML='';
+
+    if(isWin && nextAction==='next'){
+        // TT1 thắng: chơi tiếp TT2 hoặc thử lại
+        const b1=document.createElement('button');
+        b1.className='btn-overlay btn-primary';
+        b1.textContent='▶ Chơi tiếp Thử thách 2!';
+        b1.onclick=()=>{ document.getElementById('msg-overlay').classList.remove('show'); initChallenge(2); };
+        const b2=document.createElement('button');
+        b2.className='btn-overlay btn-secondary';
+        b2.textContent='🔄 Chơi lại Thử thách 1';
+        b2.onclick=()=>{ document.getElementById('msg-overlay').classList.remove('show'); initChallenge(1); };
+        btns.appendChild(b1); btns.appendChild(b2);
+    } else if(isWin && nextAction==='done'){
+        // TT2 thắng: hoàn thành hoặc chơi lại từ đầu
+        const b1=document.createElement('button');
+        b1.className='btn-overlay btn-primary';
+        b1.textContent='🏆 Hoàn thành! Tuyệt vời!';
+        b1.onclick=()=>{ document.getElementById('msg-overlay').classList.remove('show'); };
+        const b2=document.createElement('button');
+        b2.className='btn-overlay btn-secondary';
+        b2.textContent='🔄 Chơi lại từ đầu';
+        b2.onclick=()=>{ document.getElementById('msg-overlay').classList.remove('show'); initChallenge(1); };
+        btns.appendChild(b1); btns.appendChild(b2);
+    } else {
+        // Thất bại: thử lại
+        const b1=document.createElement('button');
+        b1.className='btn-overlay btn-secondary';
+        b1.textContent='🔄 Thử lại nào!';
+        b1.onclick=()=>{ document.getElementById('msg-overlay').classList.remove('show'); resetLevel(); };
+        btns.appendChild(b1);
+    }
+
+    document.getElementById('msg-overlay').classList.add('show');
+}
+
+function resetLevel() {
+    isMoving=false;
+    if(failTimeout){clearTimeout(failTimeout);failTimeout=null;}
+    if(currentChallenge===1){ eatenFruits=[]; updateFruitBadges(); }
+    currentMap = currentChallenge===1 ? map1.map(r=>[...r]) : map2.map(r=>[...r]);
+    wormTail=[];
+    createMaze();
+}
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// ===== KHỞI ĐỘNG =====
+// Đợi trình duyệt dựng xong layout rồi mới vẽ mê cung và sâu.
+window.addEventListener('DOMContentLoaded', () => {
+    initChallenge(1);
+});
+
+// Khi nhúng qua index.html hoặc resize cửa sổ, vẽ lại sâu để không bị mất lúc ban đầu.
+window.addEventListener('load', () => {
+    setTimeout(drawWorm, 80);
+});
+window.addEventListener('resize', () => {
+    setTimeout(drawWorm, 80);
+});
+</script>
+</body>
+</html>
+
